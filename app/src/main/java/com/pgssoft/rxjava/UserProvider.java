@@ -20,6 +20,10 @@ public class UserProvider {
 
     private List<User> userList = new ArrayList<>();
 
+    public UserProvider() {
+        inflateUsers();
+    }
+
     public UserProvider(ExecutorService es) {
         inflateUsers();
         es.execute(() -> {
@@ -60,7 +64,9 @@ public class UserProvider {
                 for (User u :
                         userList) {
                     e.onNext(u);
-                    Thread.sleep(delay);
+                    try {
+                        Thread.sleep(delay);
+                    } catch (InterruptedException ignored){}
                 }
 
                 e.onComplete();
