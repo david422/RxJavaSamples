@@ -18,11 +18,12 @@ class Main{
         UserProvider userProvider = new UserProvider(es);
 
 
-        Observable<String> stream1 = userProvider.getRandomUser().map(user -> "Stream1: " + user.toString());
-        Observable<String> stream2 = userProvider.getDelayedUser(150).map(user -> "Stream2: " + user.toString());
-        Observable<String> stream3 = userProvider.getDelayedUser(200).map(user -> "Stream3: " + user.toString());
+        Observable<String> stream1 = userProvider.getDelayedUser(100).map(user -> "Stream1: " + user.toString()).subscribeOn(Schedulers.io());
+        Observable<String> stream2 = userProvider.getDelayedUser(150).map(user -> "Stream2: " + user.toString()).subscribeOn(Schedulers.io());
+        Observable<String> stream3 = userProvider.getDelayedUser(200).map(user -> "Stream3: " + user.toString()).subscribeOn(Schedulers.io());
 
-        Observable.concat(stream1, stream2, stream3)
+        Observable streams = Observable.just(stream1, stream2, stream3);
+        Observable.concatEager(streams, 3, 3)
                 .observeOn(Schedulers.from(es))
                 .subscribe(new Observer() {
                     @Override
