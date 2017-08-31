@@ -12,23 +12,19 @@ class Main {
 
     public static void main(String... strings) throws InterruptedException {
 
-        ExecutorService es = Executors.newFixedThreadPool(2);
-
+        ExecutorService es = Executors.newFixedThreadPool(4);
 
         UserProvider userProvider = new UserProvider(es);
 
-
         Observable<String> stream1 = userProvider.getDelayedUser(100).doOnNext(user -> {
-            if (user.getAge() == 54) {
+            if (user.getAge() >= 54) {
                 throw new IllegalStateException("The man is too old");
             }
-        }).map(user -> "Stream1: " + user.toString()).subscribeOn(Schedulers.io());
-        Observable<String> stream2 = userProvider.getDelayedUser(150).map(user -> "Stream2: " + user.toString()).subscribeOn(Schedulers.io());
-        Observable<String> stream3 = userProvider.getDelayedUser(200).map(user -> "Stream3: " + user.toString()).subscribeOn(Schedulers.io());
+        }).map(user -> "Stream1: " + user.toString()).subscribeOn(Schedulers.from(es));
+        Observable<String> stream2 = userProvider.getDelayedUser(150).map(user -> "Stream2: " + user.toString()).subscribeOn(Schedulers.from(es));
+        Observable<String> stream3 = userProvider.getDelayedUser(200).map(user -> "Stream3: " + user.toString()).subscribeOn(Schedulers.from(es));
 
-//        Observable<Observable<String>> streams = Observable.just(stream1, stream2, stream3);
-
-        Observable.merge(stream1, stream2, stream3)
+        Observable.mergeDelayError(stream1, stream2, stream3)
                 .observeOn(Schedulers.from(es))
                 .doOnTerminate(() -> {
                     es.shutdownNow();
