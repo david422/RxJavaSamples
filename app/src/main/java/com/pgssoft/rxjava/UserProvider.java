@@ -3,6 +3,7 @@ package com.pgssoft.rxjava;
 import io.reactivex.Observable;
 import io.reactivex.ObservableEmitter;
 import io.reactivex.ObservableOnSubscribe;
+import io.reactivex.functions.BiFunction;
 import io.reactivex.subjects.PublishSubject;
 
 import java.util.ArrayList;
@@ -57,21 +58,23 @@ public class UserProvider {
         return Observable.fromIterable(userList);
     }
 
-    public Observable<User> getDelayedUser(int delay) {
-        return Observable.create(new ObservableOnSubscribe<User>() {
-            @Override
-            public void subscribe(ObservableEmitter<User> e) throws Exception {
-                for (User u :
-                        userList) {
-                    e.onNext(u);
-                    try {
-                        Thread.sleep(delay);
-                    } catch (InterruptedException ignored){}
-                }
+    /**
+     * Users are emit in given interval
+     * @param interval
+     * @return
+     */
+    public Observable<User> getDelayedUser(int interval) {
 
-                e.onComplete();
+        Observable intervalObservable = Observable.interval(0, interval, TimeUnit.MILLISECONDS);
+
+        return Observable.zip(intervalObservable, getUsers(), new BiFunction<Long, User, User>() {
+            @Override
+            public User apply(Long aLong, User user) throws Exception {
+                return user;
             }
         });
+
+
     }
 
 
