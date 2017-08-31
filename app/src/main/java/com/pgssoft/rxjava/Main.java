@@ -3,8 +3,12 @@ package com.pgssoft.rxjava;
 import io.reactivex.*;
 import io.reactivex.disposables.Disposable;
 import io.reactivex.functions.BiFunction;
+import io.reactivex.functions.Function;
+import io.reactivex.functions.Function3;
 import io.reactivex.schedulers.Schedulers;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -13,24 +17,29 @@ class Main {
 
     public static void main(String... strings) throws InterruptedException {
 
-        ExecutorService es = Executors.newFixedThreadPool(4);
+        ExecutorService es = Executors.newFixedThreadPool(2);
 
         UserProvider userProvider = new UserProvider(es);
 
-        Observable<String> stream1 = userProvider.getDelayedUser(1000)
+        Observable<String> stream1 = userProvider.getDelayedUser(10)
+                .doOnSubscribe(d -> System.out.println("Subscribe stream 1"))
                 .map(user -> "Stream1: " + user.toString()).subscribeOn(Schedulers.from(es));
 
         Observable<String> stream2 = userProvider.getDelayedUser(150)
-                .map(user -> "Stream2: " + user.toString()).subscribeOn(Schedulers.from(es))
-//                .doOnNext(System.out::println)
-                ;
+                .doOnSubscribe(d -> System.out.println("Subscribe stream 2"))
+                .map(user -> "Stream2: " + user.toString()).subscribeOn(Schedulers.from(es));
 
-        Observable.zip(stream1, stream2, new BiFunction<String, String, String>() {
+        List<Observable<String>> streamList = new ArrayList<>();
+        streamList.add(stream1);
+        streamList.add(stream2);
+
+        Observable[] streamArray = new Observable[]{stream1, stream2};
+        Observable.zipArray(new Function<Object[], String>() {
             @Override
-            public String apply(String stream, String stream2) throws Exception {
-                return "Zipped user : " + stream + ", user: " + stream2;
+            public String apply(Object[] objects) throws Exception {
+                return objects[0].toString() + " " + objects[1].toString();
             }
-        })
+        }, true, 1, streamArray)
                 .observeOn(Schedulers.from(es))
                 .doOnTerminate(es::shutdownNow)
                 .subscribe(new Observer<String>() {
