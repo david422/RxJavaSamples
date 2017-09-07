@@ -18,7 +18,7 @@ class Main {
 
     public static void main(String... strings) throws InterruptedException {
 
-        ExecutorService es = Executors.newFixedThreadPool(2);
+        ExecutorService es = Executors.newFixedThreadPool(4);
 
         UserProvider userProvider = new UserProvider(es);
         CarProvider carProvider = new CarProvider();
@@ -26,31 +26,27 @@ class Main {
         Observable<Car> carStream = carProvider.getIntervalCar(100)
                 .doOnSubscribe(d -> System.out.println("Subscribe car stream"))
                 .doFinally(() -> System.out.println("Unsubscribe car stream"))
-                .subscribeOn(Schedulers.from(es));
+                .subscribeOn(Schedulers.from(es))
+                .observeOn(Schedulers.from(es));
+                ;
 
-        Observable<User> userStream = userProvider.getDelayedUser(50,500)
+        Observable<User> userStream = userProvider.getDelayedUser(10,100)
                 .doOnSubscribe(d -> System.out.println("Subscribe user stream "))
                 .doFinally(() -> System.out.println("Unsubscribe user stream"))
                 .subscribeOn(Schedulers.from(es));
 
 
-
-        Observable.combineLatest(carStream, userStream, new BiFunction<Car, User, String>() {
-            @Override
-            public String apply(Car car, User user) throws Exception {
-                return String.format("User %s gets car %s" , user.getFirstName() + " " + user.getLastName(),  car.getManufacturerName() + " " + car.getModel());
-            }
-        })
+        Observable.amb(Arrays.asList(carStream, userStream))
                 .observeOn(Schedulers.from(es), true)
                 .doOnTerminate(es::shutdownNow)
-                .subscribe(new Observer<String>() {
+                .subscribe(new Observer<Object>() {
                     @Override
                     public void onSubscribe(Disposable d) {
 
                     }
 
                     @Override
-                    public void onNext(String o) {
+                    public void onNext(Object o) {
                         System.out.print(o + "\n");
                     }
 
