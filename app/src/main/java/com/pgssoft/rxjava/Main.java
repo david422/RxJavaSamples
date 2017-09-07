@@ -8,6 +8,7 @@ import io.reactivex.functions.Function3;
 import io.reactivex.schedulers.Schedulers;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -20,27 +21,27 @@ class Main {
         ExecutorService es = Executors.newFixedThreadPool(2);
 
         UserProvider userProvider = new UserProvider(es);
+        CarProvider carProvider = new CarProvider();
 
-        Observable<String> stream1 = userProvider.getDelayedUser(10)
-                .doOnSubscribe(d -> System.out.println("Subscribe stream 1"))
-                .map(user -> "Stream1: " + user.toString()).subscribeOn(Schedulers.from(es));
+        Observable<Car> carStream = carProvider.getIntervalCar(100)
+                .doOnSubscribe(d -> System.out.println("Subscribe car stream"))
+                .doFinally(() -> System.out.println("Unsubscribe car stream"))
+                .subscribeOn(Schedulers.from(es));
 
-        Observable<String> stream2 = userProvider.getDelayedUser(150)
-                .doOnSubscribe(d -> System.out.println("Subscribe stream 2"))
-                .map(user -> "Stream2: " + user.toString()).subscribeOn(Schedulers.from(es));
+        Observable<User> userStream = userProvider.getDelayedUser(50,500)
+                .doOnSubscribe(d -> System.out.println("Subscribe user stream "))
+                .doFinally(() -> System.out.println("Unsubscribe user stream"))
+                .subscribeOn(Schedulers.from(es));
 
-        List<Observable<String>> streamList = new ArrayList<>();
-        streamList.add(stream1);
-        streamList.add(stream2);
 
-        Observable[] streamArray = new Observable[]{stream1, stream2};
-        Observable.zipArray(new Function<Object[], String>() {
+
+        Observable.combineLatest(carStream, userStream, new BiFunction<Car, User, String>() {
             @Override
-            public String apply(Object[] objects) throws Exception {
-                return objects[0].toString() + " " + objects[1].toString();
+            public String apply(Car car, User user) throws Exception {
+                return String.format("User %s gets car %s" , user.getFirstName() + " " + user.getLastName(),  car.getManufacturerName() + " " + car.getModel());
             }
-        }, true, 1, streamArray)
-                .observeOn(Schedulers.from(es))
+        })
+                .observeOn(Schedulers.from(es), true)
                 .doOnTerminate(es::shutdownNow)
                 .subscribe(new Observer<String>() {
                     @Override

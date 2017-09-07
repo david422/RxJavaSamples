@@ -1,8 +1,6 @@
 package com.pgssoft.rxjava;
 
 import io.reactivex.Observable;
-import io.reactivex.ObservableEmitter;
-import io.reactivex.ObservableOnSubscribe;
 import io.reactivex.functions.BiFunction;
 import io.reactivex.subjects.PublishSubject;
 
@@ -63,18 +61,11 @@ public class UserProvider {
      * @param interval
      * @return
      */
-    public Observable<User> getDelayedUser(int interval) {
+    public Observable<User> getDelayedUser(int initialDelay, int interval) {
 
-        Observable intervalObservable = Observable.interval(0, interval, TimeUnit.MILLISECONDS);
+        Observable intervalObservable = Observable.interval(initialDelay, interval, TimeUnit.MILLISECONDS);
 
-        return Observable.zip(intervalObservable, getUsers(), new BiFunction<Long, User, User>() {
-            @Override
-            public User apply(Long aLong, User user) throws Exception {
-                return user;
-            }
-        });
-
-
+        return Observable.zip(intervalObservable, getUsers(), (BiFunction<Long, User, User>) (aLong, user) -> user);
     }
 
 

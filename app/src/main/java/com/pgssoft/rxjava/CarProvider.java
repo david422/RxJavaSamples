@@ -5,6 +5,7 @@ import io.reactivex.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Created by dawidpodolak on 16.08.2017.
@@ -27,7 +28,7 @@ public class CarProvider {
         carList.add(new Car(12, 5, "Skoda", "Superb", 130));
     }
 
-    public static Single<Car> findFisrtCar(int userID){
+    public Single<Car> findFisrtCar(int userID){
         return Single.create(new SingleOnSubscribe<Car>() {
             @Override
             public void subscribe(SingleEmitter<Car> e) throws Exception {
@@ -43,7 +44,12 @@ public class CarProvider {
         });
     }
 
-    public static Observable<Car> findAllCars(int userID){
+    public Observable<Car> getIntervalCar(int interval){
+         return Observable.fromIterable(carList)
+                 .zipWith(Observable.interval(0, interval, TimeUnit.MILLISECONDS), (car, along) -> car);
+    }
+
+    public Observable<Car> findAllCars(int userID){
         return Observable.create(e -> {
             for (Car car: carList) {
                 if (car.getUserId() == userID) {
