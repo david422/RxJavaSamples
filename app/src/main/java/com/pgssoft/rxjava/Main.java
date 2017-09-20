@@ -2,16 +2,12 @@ package com.pgssoft.rxjava;
 
 import io.reactivex.*;
 import io.reactivex.disposables.Disposable;
-import io.reactivex.functions.BiFunction;
 import io.reactivex.functions.Function;
-import io.reactivex.functions.Function3;
 import io.reactivex.schedulers.Schedulers;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 class Main {
 
@@ -23,20 +19,35 @@ class Main {
         UserProvider userProvider = new UserProvider(es);
         CarProvider carProvider = new CarProvider();
 
-        Observable<Car> carStream = carProvider.getIntervalCar(100)
-                .doOnSubscribe(d -> System.out.println("Subscribe car stream"))
-                .doFinally(() -> System.out.println("Unsubscribe car stream"))
-                .subscribeOn(Schedulers.from(es))
-                .observeOn(Schedulers.from(es));
-                ;
 
-        Observable<User> userStream = userProvider.getDelayedUser(10,100)
+        Observable<String> userErrorStream = userProvider.getDelayedUser(10, 100)
                 .doOnSubscribe(d -> System.out.println("Subscribe user stream "))
                 .doFinally(() -> System.out.println("Unsubscribe user stream"))
+                .doOnNext(u -> {
+                    if (u.getAge() >= 50) {
+                        throw new IllegalStateException("User is too old");
+                    }
+                })
+                .map(u -> "Stream 1 " + u.toString())
+                .subscribeOn(Schedulers.from(es));
+
+        Observable<String> userStream = userProvider.getDelayedUser(10, 100)
+                .doOnSubscribe(d -> System.out.println("Subscribe user stream "))
+                .doFinally(() -> System.out.println("Unsubscribe user stream"))
+                .map(u -> " Stream 2 " + u.toString())
                 .subscribeOn(Schedulers.from(es));
 
 
-        Observable.amb(Arrays.asList(carStream, userStream))
+        userErrorStream
+                .onErrorResumeNext(new Function<Throwable, ObservableSource<? extends String>>() {
+                    @Override
+                    public ObservableSource<? extends String> apply(Throwable throwable) throws Exception {
+                        return userStream
+                                .delay(2, TimeUnit.SECONDS);
+                    }
+                })
+//                .onErrorResumeNext(userStream)
+
                 .observeOn(Schedulers.from(es), true)
                 .doOnTerminate(es::shutdownNow)
                 .subscribe(new Observer<Object>() {
