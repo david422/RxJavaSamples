@@ -7,18 +7,15 @@ import io.reactivex.schedulers.Schedulers;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 
 class Main {
 
 
     public static void main(String... strings) throws InterruptedException {
 
-        ExecutorService es = Executors.newFixedThreadPool(4);
+        ExecutorService es = Executors.newFixedThreadPool(5);
 
         UserProvider userProvider = new UserProvider(es);
-        CarProvider carProvider = new CarProvider();
-
 
         Observable<String> userErrorStream = userProvider.getDelayedUser(10, 100)
                 .doOnSubscribe(d -> System.out.println("Subscribe user stream "))
@@ -28,7 +25,7 @@ class Main {
                         throw new IllegalStateException("User is too old");
                     }
                 })
-                .map(u -> "Stream 1 " + u.toString())
+                .map(u -> " Stream 1 " + u.toString())
                 .subscribeOn(Schedulers.from(es));
 
         Observable<String> userStream = userProvider.getDelayedUser(10, 100)
@@ -39,14 +36,13 @@ class Main {
 
 
         userErrorStream
-                .onErrorResumeNext(new Function<Throwable, ObservableSource<? extends String>>() {
+                .onErrorReturn(new Function<Throwable, String>() {
                     @Override
-                    public ObservableSource<? extends String> apply(Throwable throwable) throws Exception {
-                        return userStream
-                                .delay(2, TimeUnit.SECONDS);
+                    public String apply(Throwable throwable) throws Exception {
+                        return "Error occurred: " + throwable.getMessage();
                     }
                 })
-//                .onErrorResumeNext(userStream)
+//                .onErrorReturnItem("Error occurred")
 
                 .observeOn(Schedulers.from(es), true)
                 .doOnTerminate(es::shutdownNow)
